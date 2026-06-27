@@ -1,0 +1,15 @@
+{
+	"name": "adf-azure-training",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "66a410b6-e7ca-4b4b-b65d-1b2c092e62b8",
+		"tenantId": "08663097-edc8-4cbb-9357-b0f83c614c9e"
+	}
+}

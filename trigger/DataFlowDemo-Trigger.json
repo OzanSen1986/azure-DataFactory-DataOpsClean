@@ -1,0 +1,36 @@
+{
+	"name": "DataFlowDemo-Trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "Demo_Execute DataFlow",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Week",
+				"interval": 1,
+				"startTime": "2026-06-19T19:12:00",
+				"timeZone": "Turkey Standard Time",
+				"schedule": {
+					"minutes": [
+						30
+					],
+					"hours": [
+						8
+					],
+					"weekDays": [
+						"Saturday",
+						"Sunday"
+					]
+				}
+			}
+		}
+	}
+}

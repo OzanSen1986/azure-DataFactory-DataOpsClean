@@ -1,0 +1,85 @@
+{
+	"name": "DataFlowDemo",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "az_ADLS_ProductAll",
+						"type": "DatasetReference"
+					},
+					"name": "ProductsAll"
+				},
+				{
+					"dataset": {
+						"referenceName": "az_ADLS_ProductModels",
+						"type": "DatasetReference"
+					},
+					"name": "ProductModels"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "az_ADLS_ProductFinalData",
+						"type": "DatasetReference"
+					},
+					"name": "ProductFinalData"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CombineDatasets"
+				},
+				{
+					"name": "RemoveDuplicateColumns"
+				},
+				{
+					"name": "RemovePriceBelow130"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          product_id as integer,",
+				"          product_name as string,",
+				"          model_id as integer,",
+				"          price as float",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> ProductsAll",
+				"source(output(",
+				"          model_id as integer,",
+				"          model_name as string,",
+				"          category as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> ProductModels",
+				"ProductsAll, ProductModels lookup(ProductsAll@model_id == ProductModels@model_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> CombineDatasets",
+				"CombineDatasets select(mapColumn(",
+				"          product_id,",
+				"          product_name,",
+				"          model_id = ProductsAll@model_id,",
+				"          price,",
+				"          model_name,",
+				"          category",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RemoveDuplicateColumns",
+				"RemoveDuplicateColumns filter(lesserOrEqual(price, 130)) ~> RemovePriceBelow130",
+				"RemovePriceBelow130 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
+			]
+		}
+	}
+}

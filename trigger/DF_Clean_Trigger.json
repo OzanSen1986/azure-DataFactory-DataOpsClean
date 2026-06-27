@@ -1,0 +1,18 @@
+{
+	"name": "DF_Clean_Trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/bronze/blobs/Source/messy_orders",
+			"blobPathEndsWith": ".csv",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/7df9a099-df01-425f-8a98-42f1cab67d33/resourceGroups/rg-azure-learning/providers/Microsoft.Storage/storageAccounts/strialstorage001",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}
