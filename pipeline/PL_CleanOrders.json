@@ -27,6 +27,16 @@
 				}
 			}
 		],
+		"parameters": {
+			"City": {
+				"type": "string",
+				"defaultValue": "Istanbul"
+			},
+			"LogActivity": {
+				"type": "bool",
+				"defaultValue": "False"
+			}
+		},
 		"annotations": [],
 		"lastPublishTime": "2026-06-27T16:26:12Z"
 	},
