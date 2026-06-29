@@ -1,0 +1,36 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-azure-training"
+		},
+		"az_ADLS_strialstorage001_accountKey": {
+			"value": ""
+		},
+		"az_SQLDB_ADF_sql_server_training_password": {
+			"value": ""
+		},
+		"az_ADLS_strialstorage001_properties_typeProperties_url": {
+			"value": "https://strialstorage001.dfs.core.windows.net/"
+		},
+		"az_SQLDB_ADF_sql_server_training_properties_typeProperties_server": {
+			"value": "az-sql-server-trial-ozan-sen.database.windows.net"
+		},
+		"az_SQLDB_ADF_sql_server_training_properties_typeProperties_database": {
+			"value": "az-sqldb-trial-learning"
+		},
+		"az_SQLDB_ADF_sql_server_training_properties_typeProperties_userName": {
+			"value": "ozan_db_admin"
+		},
+		"DF_Clean_Trigger_properties_typeProperties_scope": {
+			"value": "/subscriptions/7df9a099-df01-425f-8a98-42f1cab67d33/resourceGroups/rg-azure-learning/providers/Microsoft.Storage/storageAccounts/strialstorage001"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
