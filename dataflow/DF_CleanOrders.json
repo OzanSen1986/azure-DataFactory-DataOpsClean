@@ -131,7 +131,19 @@
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> InvalidBadData"
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          order_id,",
+				"          customer_name,",
+				"          product,",
+				"          quantity,",
+				"          unit_price,",
+				"          order_date,",
+				"          city,",
+				"          status,",
+				"          payment_method,",
+				"          total_amount",
+				"     )) ~> InvalidBadData"
 			]
 		}
 	}
