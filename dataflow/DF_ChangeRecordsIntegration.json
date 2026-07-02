@@ -1,0 +1,60 @@
+{
+	"name": "DF_ChangeRecordsIntegration",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "az_ADLS_ProductSource",
+						"type": "DatasetReference"
+					},
+					"name": "ProductsSourceFile"
+				},
+				{
+					"dataset": {
+						"referenceName": "az_SQLDB_dbo_Products",
+						"type": "DatasetReference"
+					},
+					"name": "DimProductSourceTable"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "CheckProductIDExistence"
+				},
+				{
+					"name": "ChangeTypeAction"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          ProductID as integer,",
+				"          ProductName as string,",
+				"          Price as float,",
+				"          Stock as integer,",
+				"          IsActive as boolean",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> ProductsSourceFile",
+				"source(output(",
+				"          ProductID as integer,",
+				"          ProductName as string,",
+				"          Price as double,",
+				"          Stock as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> DimProductSourceTable",
+				"ProductsSourceFile, DimProductSourceTable lookup(ProductsSourceFile@ProductID == DimProductSourceTable@ProductID,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> CheckProductIDExistence",
+				"CheckProductIDExistence derive(ChangeType = ERROR_FUNCTION('iif(IsActive == false,__SINGLE_QUOTE__DELETE__SINGLE_QUOTE__,__NEW_LINE_N__iif(isNull(DimProductSourceTable@ProductID), __SINGLE_QUOTE__INSERT__SINGLE_QUOTE__, __SINGLE_QUOTE__UPDATE__SINGLE_QUOTE__)__NEW_LINE_N__))')) ~> ChangeTypeAction"
+			]
+		}
+	}
+}
