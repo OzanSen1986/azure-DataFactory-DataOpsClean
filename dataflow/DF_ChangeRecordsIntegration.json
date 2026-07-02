@@ -84,14 +84,18 @@
 				"     upsertable:false,",
 				"     keys:['ProductID'],",
 				"     format: 'table',",
+				"     preSQLs:['SET IDENTITY_INSERT dbo.DimProduct ON'],",
+				"     postSQLs:['SET IDENTITY_INSERT dbo.DimProduct OFF'],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
 				"     errorHandlingOption: 'stopOnFirstError',",
 				"     mapColumn(",
+				"          ProductID = ProductsSourceFile@ProductID,",
 				"          ProductName = ProductsSourceFile@ProductName,",
 				"          Price = ProductsSourceFile@Price,",
 				"          Stock = ProductsSourceFile@Stock",
-				"     )) ~> SentToAzureDB"
+				"     ),",
+				"     partitionBy('hash', 1)) ~> SentToAzureDB"
 			]
 		}
 	}
