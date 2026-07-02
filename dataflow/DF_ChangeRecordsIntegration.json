@@ -90,8 +90,7 @@
 				"     mapColumn(",
 				"          ProductName = ProductsSourceFile@ProductName,",
 				"          Price = ProductsSourceFile@Price,",
-				"          Stock = ProductsSourceFile@Stock,",
-				"          ProductID = ProductsSourceFile@ProductID",
+				"          Stock = ProductsSourceFile@Stock",
 				"     )) ~> SentToAzureDB"
 			]
 		}
