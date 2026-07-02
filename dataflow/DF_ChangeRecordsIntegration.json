@@ -67,9 +67,9 @@
 				"CheckProductIDExistence derive(ChangeType = iif(!IsActive,'DELETE',",
 				"iif(isNull(DimProductSourceTable@ProductID), 'INSERT', 'UPDATE')",
 				")) ~> ChangeTypeAction",
-				"ChangeTypeAction alterRow(insertIf(ChangeType == 'INSERT'),",
-				"     updateIf(ChangeType == 'UPDATE'),",
-				"     deleteIf(ChangeType == 'DELETE')) ~> StampRowsWithAction",
+				"ChangeTypeAction alterRow(insertIf(ChangeType=='INSERT'),",
+				"     updateIf(ChangeType=='UPDATE'),",
+				"     deleteIf(ChangeType=='DELETE')) ~> StampRowsWithAction",
 				"StampRowsWithAction sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
@@ -86,7 +86,13 @@
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     errorHandlingOption: 'stopOnFirstError') ~> SentToAzureDB"
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          ProductName = ProductsSourceFile@ProductName,",
+				"          Price = ProductsSourceFile@Price,",
+				"          Stock = ProductsSourceFile@Stock,",
+				"          ProductID = ProductsSourceFile@ProductID",
+				"     )) ~> SentToAzureDB"
 			]
 		}
 	}
