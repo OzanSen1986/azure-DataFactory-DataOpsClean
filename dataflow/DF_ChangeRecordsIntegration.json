@@ -19,13 +19,24 @@
 					"name": "DimProductSourceTable"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "az_SQLDB_dbo_Products",
+						"type": "DatasetReference"
+					},
+					"name": "SentToAzureDB"
+				}
+			],
 			"transformations": [
 				{
 					"name": "CheckProductIDExistence"
 				},
 				{
 					"name": "ChangeTypeAction"
+				},
+				{
+					"name": "StampRowsWithAction"
 				}
 			],
 			"scriptLines": [
@@ -53,7 +64,29 @@
 				"     multiple: false,",
 				"     pickup: 'any',",
 				"     broadcast: 'auto')~> CheckProductIDExistence",
-				"CheckProductIDExistence derive(ChangeType = ERROR_FUNCTION('iif(IsActive == false,__SINGLE_QUOTE__DELETE__SINGLE_QUOTE__,__NEW_LINE_N__iif(isNull(DimProductSourceTable@ProductID), __SINGLE_QUOTE__INSERT__SINGLE_QUOTE__, __SINGLE_QUOTE__UPDATE__SINGLE_QUOTE__)__NEW_LINE_N__))')) ~> ChangeTypeAction"
+				"CheckProductIDExistence derive(ChangeType = iif(!IsActive,'DELETE',",
+				"iif(isNull(DimProductSourceTable@ProductID), 'INSERT', 'UPDATE')",
+				")) ~> ChangeTypeAction",
+				"ChangeTypeAction alterRow(insertIf(ChangeType == 'INSERT'),",
+				"     updateIf(ChangeType == 'UPDATE'),",
+				"     deleteIf(ChangeType == 'DELETE')) ~> StampRowsWithAction",
+				"StampRowsWithAction sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          ProductID as integer,",
+				"          ProductName as string,",
+				"          Price as double,",
+				"          Stock as integer",
+				"     ),",
+				"     deletable:true,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['ProductID'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> SentToAzureDB"
 			]
 		}
 	}
