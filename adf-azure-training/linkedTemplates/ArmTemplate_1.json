@@ -13,6 +13,159 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DF_CleanOrders')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_MessyOrders",
+								"type": "DatasetReference"
+							},
+							"name": "MessyOrders"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_CleanedOrders",
+								"type": "DatasetReference"
+							},
+							"name": "FinalCleanedData"
+						},
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_Quarantine",
+								"type": "DatasetReference"
+							},
+							"name": "InvalidBadData"
+						}
+					],
+					"transformations": [
+						{
+							"name": "MessyDataAggregation"
+						},
+						{
+							"name": "DataDerivedColumns"
+						},
+						{
+							"name": "CasingDerivedColumn"
+						},
+						{
+							"name": "ParseStandardizeDatesDerivedColumn"
+						},
+						{
+							"name": "UnitPriceDerivedColumn"
+						},
+						{
+							"name": "SplitDataRows"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          order_id as string,",
+						"          customer_name as string,",
+						"          product as string,",
+						"          quantity as string,",
+						"          unit_price as string,",
+						"          order_date as string,",
+						"          city as string,",
+						"          status as string,",
+						"          payment_method as string,",
+						"          total_amount as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> MessyOrders",
+						"MessyOrders aggregate(groupBy(order_id,",
+						"          customer_name,",
+						"          product,",
+						"          quantity,",
+						"          unit_price,",
+						"          order_date,",
+						"          city,",
+						"          status,",
+						"          payment_method,",
+						"          total_amount),",
+						"     row_count = count(1)) ~> MessyDataAggregation",
+						"MessyDataAggregation derive(order_id = iif(or(isNull(order_id),in(['', 'N/A', 'n/a', 'NA'],trim(toString(order_id)))),toString(null()),trim(toString(order_id))),",
+						"          customer_name = iif(or(isNull(customer_name),  in(['','N/A','NA'], trim(toString(customer_name)))),  toString(null()), trim(toString(customer_name))),",
+						"          product = iif(or(isNull(product),in(['','N/A','NA'], trim(toString(product)))),toString(null()), trim(toString(product))),",
+						"          status = iif(or(isNull(status),in(['','N/A','NA'], trim(toString(status)))),toString(null()), trim(toString(status))),",
+						"          payment_method = iif(or(isNull(payment_method),in(['','N/A','NA'],trim(toString(payment_method)))),toString(null()), trim(toString(payment_method))),",
+						"          city = iif(or(isNull(city),in(['','N/A','NA'], trim(toString(city)))),toString(null()), trim(toString(city)))) ~> DataDerivedColumns",
+						"DataDerivedColumns derive(customer_name = initCap(lower(customer_name)),",
+						"          city = initCap(lower(city)),",
+						"          status = initCap(lower(status)),",
+						"          payment_method = initCap(lower(payment_method)),",
+						"          product = initCap(lower(product)),",
+						"          order_id = upper(trim(order_id))) ~> CasingDerivedColumn",
+						"CasingDerivedColumn derive(order_date = iif(regexMatch(order_date, '\\\\d{4}-\\\\d{2}-\\\\d{2}'),  toDate(order_date, 'yyyy-MM-dd'),  iif(    regexMatch(order_date, '\\\\d{2}/\\\\d{2}/\\\\d{4}'),    toDate(order_date, 'MM/dd/yyyy'),    iif(      regexMatch(order_date, '\\\\d{2}-\\\\d{2}-\\\\d{2}'),      toDate(order_date, 'dd-MM-yy'),      iif(        regexMatch(order_date, '[A-Za-z]+ \\\\d{2}, \\\\d{4}'),        toDate(order_date, 'MMMM dd, yyyy'),        toDate(null())      )    )  ))) ~> ParseStandardizeDatesDerivedColumn",
+						"ParseStandardizeDatesDerivedColumn derive(unit_price = toDouble(",
+						"  regexReplace(",
+						"    regexReplace(",
+						"      regexReplace(unit_price, '\\\\$|,|\\\\s*USD', ''),",
+						"      '\\\\(([0-9.]+)\\\\)',",
+						"      '-$1'",
+						"    ),",
+						"    '[^0-9.\\\\-]', ''",
+						"  )",
+						"),",
+						"          total_amount = toDouble(",
+						"  regexReplace(",
+						"    regexReplace(",
+						"      regexReplace(total_amount, '\\\\$|,|\\\\s*USD', ''),",
+						"      '\\\\(([0-9.]+)\\\\)',",
+						"      '-$1'",
+						"    ),",
+						"    '[^0-9.\\\\-]', ''",
+						"  )",
+						"),",
+						"          quantity = toInteger(regexReplace(quantity,'[^0-9\\\\-]', ''))) ~> UnitPriceDerivedColumn",
+						"UnitPriceDerivedColumn split(!isNull(order_id)",
+						"&& !isNull(customer_name)",
+						"&& !isNull(product)",
+						"&& !isNull(order_date)",
+						"&& unit_price > 0",
+						"&& quantity > 0,",
+						"     disjoint: false) ~> SplitDataRows@(ValidRows, InvalidRows)",
+						"SplitDataRows@ValidRows sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['clean_orders.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> FinalCleanedData",
+						"SplitDataRows@InvalidRows sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          order_id,",
+						"          customer_name,",
+						"          product,",
+						"          quantity,",
+						"          unit_price,",
+						"          order_date,",
+						"          city,",
+						"          status,",
+						"          payment_method,",
+						"          total_amount",
+						"     )) ~> InvalidBadData"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DataFlowDemo')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -95,102 +248,6 @@
 						"     postCommands: [],",
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
-					]
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DF_ChangeRecordsIntegration')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductSource",
-								"type": "DatasetReference"
-							},
-							"name": "ProductsSourceFile"
-						},
-						{
-							"dataset": {
-								"referenceName": "az_SQLDB_dbo_Products",
-								"type": "DatasetReference"
-							},
-							"name": "DimProductSourceTable"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "az_SQLDB_dbo_Products",
-								"type": "DatasetReference"
-							},
-							"name": "SentToAzureDB"
-						}
-					],
-					"transformations": [
-						{
-							"name": "CheckProductIDExistence"
-						},
-						{
-							"name": "ChangeTypeAction"
-						},
-						{
-							"name": "StampRowsWithAction"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          ProductID as integer,",
-						"          ProductName as string,",
-						"          Price as float,",
-						"          Stock as integer,",
-						"          IsActive as boolean",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> ProductsSourceFile",
-						"source(output(",
-						"          ProductID as integer,",
-						"          ProductName as string,",
-						"          Price as double,",
-						"          Stock as integer",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     format: 'table') ~> DimProductSourceTable",
-						"ProductsSourceFile, DimProductSourceTable lookup(ProductsSourceFile@ProductID == DimProductSourceTable@ProductID,",
-						"     multiple: false,",
-						"     pickup: 'any',",
-						"     broadcast: 'auto')~> CheckProductIDExistence",
-						"CheckProductIDExistence derive(ChangeType = iif(!IsActive,'DELETE',",
-						"iif(isNull(DimProductSourceTable@ProductID), 'INSERT', 'UPDATE')",
-						")) ~> ChangeTypeAction",
-						"ChangeTypeAction alterRow(insertIf(ChangeType == 'INSERT'),",
-						"     updateIf(ChangeType == 'UPDATE'),",
-						"     deleteIf(ChangeType == 'DELETE')) ~> StampRowsWithAction",
-						"StampRowsWithAction sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     input(",
-						"          ProductID as integer,",
-						"          ProductName as string,",
-						"          Price as double,",
-						"          Stock as integer",
-						"     ),",
-						"     deletable:true,",
-						"     insertable:true,",
-						"     updateable:true,",
-						"     upsertable:false,",
-						"     keys:['ProductID'],",
-						"     format: 'table',",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     errorHandlingOption: 'stopOnFirstError') ~> SentToAzureDB"
 					]
 				}
 			},
@@ -287,6 +344,69 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2026-06-27T16:26:12Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_CleanOrders')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_HandlingChangeSourceRecords')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "RestTime",
+						"type": "Wait",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 2
+						}
+					},
+					{
+						"name": "Execute DF_ChangeRecordsIntegration",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "RestTime",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_ChangeRecordsIntegration",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"ProductsSourceFile": {},
+									"DimProductSourceTable": {},
+									"SentToAzureDB": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
 			},
 			"dependsOn": []
 		},
