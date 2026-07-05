@@ -1,0 +1,25 @@
+{
+	"name": "Test-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Move Data",
+				"description": "Moves data from Azure SQL DB To Azure DAta Lake Storage Gen 2",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"enableStaging": false
+				}
+			}
+		],
+		"annotations": []
+	}
+}
