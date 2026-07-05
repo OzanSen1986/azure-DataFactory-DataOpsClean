@@ -13,6 +13,111 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DF_ChangeRecordsIntegration')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductSource",
+								"type": "DatasetReference"
+							},
+							"name": "ProductsSourceFile"
+						},
+						{
+							"dataset": {
+								"referenceName": "az_SQLDB_dbo_Products",
+								"type": "DatasetReference"
+							},
+							"name": "DimProductSourceTable"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "az_SQLDB_dbo_Products",
+								"type": "DatasetReference"
+							},
+							"name": "SentToAzureDB"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CheckProductIDExistence"
+						},
+						{
+							"name": "ChangeTypeAction"
+						},
+						{
+							"name": "StampRowsWithAction"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          ProductID as integer,",
+						"          ProductName as string,",
+						"          Price as float,",
+						"          Stock as integer,",
+						"          IsActive as boolean",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> ProductsSourceFile",
+						"source(output(",
+						"          ProductID as integer,",
+						"          ProductName as string,",
+						"          Price as double,",
+						"          Stock as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> DimProductSourceTable",
+						"ProductsSourceFile, DimProductSourceTable lookup(ProductsSourceFile@ProductID == DimProductSourceTable@ProductID,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> CheckProductIDExistence",
+						"CheckProductIDExistence derive(ChangeType = iif(!IsActive,'DELETE',",
+						"iif(isNull(DimProductSourceTable@ProductID), 'INSERT', 'UPDATE')",
+						")) ~> ChangeTypeAction",
+						"ChangeTypeAction alterRow(insertIf(ChangeType=='INSERT'),",
+						"     updateIf(ChangeType=='UPDATE'),",
+						"     deleteIf(ChangeType=='DELETE')) ~> StampRowsWithAction",
+						"StampRowsWithAction sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          ProductID as integer,",
+						"          ProductName as string,",
+						"          Price as double,",
+						"          Stock as integer",
+						"     ),",
+						"     deletable:true,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['ProductID'],",
+						"     format: 'table',",
+						"     preSQLs:['SET IDENTITY_INSERT dbo.DimProduct ON'],",
+						"     postSQLs:['SET IDENTITY_INSERT dbo.DimProduct OFF'],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          ProductID = ProductsSourceFile@ProductID,",
+						"          ProductName = ProductsSourceFile@ProductName,",
+						"          Price = ProductsSourceFile@Price,",
+						"          Stock = ProductsSourceFile@Stock",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> SentToAzureDB"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DF_CleanOrders')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -408,7 +513,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_ChangeRecordsIntegration')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/DataFlowDemo-Trigger')]",
