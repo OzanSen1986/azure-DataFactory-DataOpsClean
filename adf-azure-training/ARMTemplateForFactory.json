@@ -1613,35 +1613,321 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
+						"fileName": "ordering_raw.csv",
 						"folderPath": "Source",
 						"fileSystem": "bronze"
 					},
 					"columnDelimiter": ",",
+					"rowDelimiter": "\n",
 					"escapeChar": "\\",
 					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
 				"schema": [
 					{
-						"name": "product_id",
+						"name": "OrderID",
 						"type": "String"
 					},
 					{
-						"name": "product_name",
+						"name": "OrderDate",
 						"type": "String"
 					},
 					{
-						"name": "model_id",
+						"name": "ShipDate",
 						"type": "String"
 					},
 					{
-						"name": "price",
+						"name": "CustomerID",
+						"type": "String"
+					},
+					{
+						"name": "Product",
+						"type": "String"
+					},
+					{
+						"name": "Category",
+						"type": "String"
+					},
+					{
+						"name": "Quantity",
+						"type": "String"
+					},
+					{
+						"name": "UnitPrice",
+						"type": "String"
+					},
+					{
+						"name": "DiscountPercent",
+						"type": "String"
+					},
+					{
+						"name": "TotalAmount",
+						"type": "String"
+					},
+					{
+						"name": "PaymentMethod",
+						"type": "String"
+					},
+					{
+						"name": "Country",
+						"type": "String"
+					},
+					{
+						"name": "OrderStatus",
 						"type": "String"
 					}
 				]
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/az_ADLS_strialstorage001')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Test-Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 3
+						}
+					},
+					{
+						"name": "Execute DF_Transform_ordering_raw",
+						"description": "Transfer data from Azure Data Lake Storage to Azure SQL DB",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Wait1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_Transform_ordering_raw",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceData": {},
+									"TransferToAzureSQLDB": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_Transform_ordering_raw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/az_SQLDB_FactOrders')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_SQLDB_ADF_sql_server_training",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "OrderID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "OrderDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "ShipDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "CustomerID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Product",
+						"type": "varchar"
+					},
+					{
+						"name": "Category",
+						"type": "varchar"
+					},
+					{
+						"name": "Quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "UnitPrice",
+						"type": "decimal",
+						"precision": 5,
+						"scale": 2
+					},
+					{
+						"name": "DiscountPercent",
+						"type": "decimal",
+						"precision": 3,
+						"scale": 2
+					},
+					{
+						"name": "TotalAmount",
+						"type": "decimal",
+						"precision": 8,
+						"scale": 2
+					},
+					{
+						"name": "PaymentMethod",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					},
+					{
+						"name": "OrderStatus",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "FactOrders"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DF_Transform_ordering_raw')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ordering_raw",
+								"type": "DatasetReference"
+							},
+							"name": "SourceData"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "az_SQLDB_FactOrders",
+								"type": "DatasetReference"
+							},
+							"name": "TransferToAzureSQLDB"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CastingDataTypes"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          OrderID as string,",
+						"          OrderDate as string,",
+						"          ShipDate as string,",
+						"          CustomerID as string,",
+						"          Product as string,",
+						"          Category as string,",
+						"          Quantity as string,",
+						"          UnitPrice as string,",
+						"          DiscountPercent as string,",
+						"          TotalAmount as string,",
+						"          PaymentMethod as string,",
+						"          Country as string,",
+						"          OrderStatus as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> SourceData",
+						"SourceData cast(output(",
+						"          OrderID as integer,",
+						"          OrderDate as date,",
+						"          ShipDate as date,",
+						"          CustomerID as string,",
+						"          Product as string,",
+						"          Category as string,",
+						"          Quantity as integer,",
+						"          UnitPrice as float,",
+						"          DiscountPercent as float,",
+						"          TotalAmount as float,",
+						"          PaymentMethod as string,",
+						"          Country as string,",
+						"          OrderStatus as string",
+						"     ),",
+						"     errors: true) ~> CastingDataTypes",
+						"CastingDataTypes sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          OrderID as integer,",
+						"          OrderDate as timestamp,",
+						"          ShipDate as timestamp,",
+						"          CustomerID as integer,",
+						"          Product as string,",
+						"          Category as string,",
+						"          Quantity as integer,",
+						"          UnitPrice as decimal(5,2),",
+						"          DiscountPercent as decimal(3,2),",
+						"          TotalAmount as decimal(8,2),",
+						"          PaymentMethod as string,",
+						"          Country as string,",
+						"          OrderStatus as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> TransferToAzureSQLDB"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/az_ADLS_ordering_raw')]",
+				"[concat(variables('factoryId'), '/datasets/az_SQLDB_FactOrders')]"
 			]
 		}
 	]
