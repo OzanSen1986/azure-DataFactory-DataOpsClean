@@ -1,5 +1,5 @@
 {
-	"name": "Test-Pipeline",
+	"name": "PL_MoveDataFromADLSToAzureSQLDB",
 	"properties": {
 		"activities": [
 			{
