@@ -1,5 +1,5 @@
 {
-	"name": "DF_Tranform_ordering_raw",
+	"name": "DF_Transform_ordering_raw",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
