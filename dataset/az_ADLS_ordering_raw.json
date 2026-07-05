@@ -10,6 +10,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
+				"fileName": "ordering_raw.csv",
 				"folderPath": "Source",
 				"fileSystem": "bronze"
 			},
@@ -20,19 +21,55 @@
 		},
 		"schema": [
 			{
-				"name": "product_id",
+				"name": "OrderID",
 				"type": "String"
 			},
 			{
-				"name": "product_name",
+				"name": "OrderDate",
 				"type": "String"
 			},
 			{
-				"name": "model_id",
+				"name": "ShipDate",
 				"type": "String"
 			},
 			{
-				"name": "price",
+				"name": "CustomerID",
+				"type": "String"
+			},
+			{
+				"name": "Product",
+				"type": "String"
+			},
+			{
+				"name": "Category",
+				"type": "String"
+			},
+			{
+				"name": "Quantity",
+				"type": "String"
+			},
+			{
+				"name": "UnitPrice",
+				"type": "String"
+			},
+			{
+				"name": "DiscountPercent",
+				"type": "String"
+			},
+			{
+				"name": "TotalAmount",
+				"type": "String"
+			},
+			{
+				"name": "PaymentMethod",
+				"type": "String"
+			},
+			{
+				"name": "Country",
+				"type": "String"
+			},
+			{
+				"name": "OrderStatus",
 				"type": "String"
 			}
 		]
