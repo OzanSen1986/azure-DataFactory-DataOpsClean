@@ -1,0 +1,92 @@
+{
+	"name": "DF_Tranform_ordering_raw",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "az_ADLS_ordering_raw",
+						"type": "DatasetReference"
+					},
+					"name": "SourceData"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "az_SQLDB_FactOrders",
+						"type": "DatasetReference"
+					},
+					"name": "TransferToAzureSQLDB"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CastingDataTypes"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          OrderID as string,",
+				"          OrderDate as string,",
+				"          ShipDate as string,",
+				"          CustomerID as string,",
+				"          Product as string,",
+				"          Category as string,",
+				"          Quantity as string,",
+				"          UnitPrice as string,",
+				"          DiscountPercent as string,",
+				"          TotalAmount as string,",
+				"          PaymentMethod as string,",
+				"          Country as string,",
+				"          OrderStatus as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> SourceData",
+				"SourceData cast(output(",
+				"          OrderID as integer,",
+				"          OrderDate as date,",
+				"          ShipDate as date,",
+				"          CustomerID as string,",
+				"          Product as string,",
+				"          Category as string,",
+				"          Quantity as integer,",
+				"          UnitPrice as float,",
+				"          DiscountPercent as float,",
+				"          TotalAmount as float,",
+				"          PaymentMethod as string,",
+				"          Country as string,",
+				"          OrderStatus as string",
+				"     ),",
+				"     errors: true) ~> CastingDataTypes",
+				"CastingDataTypes sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          OrderID as integer,",
+				"          OrderDate as timestamp,",
+				"          ShipDate as timestamp,",
+				"          CustomerID as integer,",
+				"          Product as string,",
+				"          Category as string,",
+				"          Quantity as integer,",
+				"          UnitPrice as decimal(5,2),",
+				"          DiscountPercent as decimal(3,2),",
+				"          TotalAmount as decimal(8,2),",
+				"          PaymentMethod as string,",
+				"          Country as string,",
+				"          OrderStatus as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> TransferToAzureSQLDB"
+			]
+		}
+	}
+}
