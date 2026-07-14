@@ -19,8 +19,103 @@
 					"method": "GET",
 					"url": "https://api.frankfurter.dev/v1/latest"
 				}
+			},
+			{
+				"name": "ForEach_BaseCurrency",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "GetDataFromAPI",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.BaseCurrencies",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy_FxRates_To_Bronze",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:00.010",
+									"requestMethod": "GET",
+									"paginationRules": {
+										"supportRFC5988": "true"
+									}
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "az_RestSource_ExchangeRates",
+									"type": "DatasetReference",
+									"parameters": {
+										"RunDate": "2026-07-13",
+										"BaseCurrency": {
+											"value": "@item()",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_Bronze_FxRates_Json",
+									"type": "DatasetReference",
+									"parameters": {
+										"date": "2026-07-13",
+										"currency": {
+											"value": "@item()",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
 			}
 		],
+		"parameters": {
+			"BaseCurrencies": {
+				"type": "Array",
+				"defaultValue": [
+					"USD",
+					"EUR",
+					"GBP",
+					"JPY",
+					"TRY",
+					"AUD",
+					"CAD"
+				]
+			}
+		},
 		"annotations": []
 	}
 }
