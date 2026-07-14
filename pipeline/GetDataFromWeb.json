@@ -37,6 +37,8 @@
 						"value": "@pipeline().parameters.BaseCurrencies",
 						"type": "Expression"
 					},
+					"isSequential": false,
+					"batchCount": 4,
 					"activities": [
 						{
 							"name": "Copy_FxRates_To_Bronze",
