@@ -1,0 +1,6 @@
+{
+	"name": "WebSourceIntegrationRunTime",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
