@@ -1,6 +1,16 @@
 {
 	"name": "GetWebData",
 	"properties": {
+		"parameters": {
+			"RunDate": {
+				"type": "string",
+				"defaultValue": "2026-07-13"
+			},
+			"BaseCurrency": {
+				"type": "string",
+				"defaultValue": "USD"
+			}
+		},
 		"annotations": [],
 		"type": "RestService",
 		"typeProperties": {
