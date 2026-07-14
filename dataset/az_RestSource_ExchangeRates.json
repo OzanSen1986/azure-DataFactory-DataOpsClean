@@ -1,0 +1,28 @@
+{
+	"name": "az_RestSource_ExchangeRates",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "GetWebData",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"RunDate": {
+				"type": "string",
+				"defaultValue": "2026-07-13"
+			},
+			"BaseCurrency": {
+				"type": "string",
+				"defaultValue": "USD"
+			}
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"typeProperties": {
+			"relativeUrl": {
+				"value": "@concat(dataset().RunDate, '?from=', dataset().BaseCurrency)",
+				"type": "Expression"
+			}
+		},
+		"schema": []
+	}
+}
