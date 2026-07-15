@@ -78,7 +78,7 @@
 									"referenceName": "az_RestSource_ExchangeRates",
 									"type": "DatasetReference",
 									"parameters": {
-										"RunDate": "2026-07-13",
+										"RunDate": "2026-07-14",
 										"BaseCurrency": {
 											"value": "@item()",
 											"type": "Expression"
@@ -91,7 +91,7 @@
 									"referenceName": "DS_Bronze_FxRates_Json",
 									"type": "DatasetReference",
 									"parameters": {
-										"date": "2026-07-13",
+										"date": "2026-07-14",
 										"currency": {
 											"value": "@item()",
 											"type": "Expression"
