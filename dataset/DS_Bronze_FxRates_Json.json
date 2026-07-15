@@ -21,7 +21,7 @@
 			"location": {
 				"type": "AzureBlobFSLocation",
 				"fileName": {
-					"value": "fx/ingest_date=dataset().date/base=dataset().currency/dataset().currency_dataset().date.json",
+					"value": "fx/ingest_date=dataset().date/base=dataset().currency/dataset().currency/dataset().date.json",
 					"type": "Expression"
 				},
 				"folderPath": "Source",
