@@ -34,7 +34,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@array(pipeline().parameters.BaseCurrencies)",
+						"value": "@variables('BaseCurrencies')",
 						"type": "Expression"
 					},
 					"isSequential": false,
@@ -104,7 +104,7 @@
 				}
 			}
 		],
-		"parameters": {
+		"variables": {
 			"BaseCurrencies": {
 				"type": "Array",
 				"defaultValue": [
