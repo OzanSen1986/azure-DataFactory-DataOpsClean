@@ -15,6 +15,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'az_SQLDB_ADF_sql_server_training'"
 		},
+		"GetWebData_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://api.frankfurter.dev/v1"
+		},
 		"az_ADLS_strialstorage001_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://strialstorage001.dfs.core.windows.net/"
@@ -40,6 +44,21 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/GetWebData')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('GetWebData_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/az_ADLS_strialstorage001')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -99,6 +118,44 @@
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_Bronze_FxRates_Json')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_ADLS_strialstorage001",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"date": {
+						"type": "String",
+						"defaultValue": "2026-07-13"
+					},
+					"currency": {
+						"type": "String",
+						"defaultValue": "USD"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "fx/ingest_date=dataset().date/base=dataset().currency/dataset().currency/dataset().date.json",
+							"type": "Expression"
+						},
+						"folderPath": "Source",
+						"fileSystem": "bronze"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_ADLS_strialstorage001')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/az_ADLS_CleanedOrders')]",
@@ -446,82 +503,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/az_SQLDB_dbo_Products')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "az_SQLDB_ADF_sql_server_training",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "ProductID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "ProductName",
-						"type": "varchar"
-					},
-					{
-						"name": "Price",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "Stock",
-						"type": "int",
-						"precision": 10
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "DimProduct"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/az_SQLDB_dbo_emp')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "az_SQLDB_ADF_sql_server_training",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "ID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "FirstName",
-						"type": "varchar"
-					},
-					{
-						"name": "LastName",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "emp"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/az_ADLS_ordering_raw')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -605,6 +586,39 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/az_RestSource_ExchangeRates')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "GetWebData",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"RunDate": {
+						"type": "string",
+						"defaultValue": "2026-07-13"
+					},
+					"BaseCurrency": {
+						"type": "string",
+						"defaultValue": "USD"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@concat(dataset().RunDate, '?from=', dataset().BaseCurrency)",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/GetWebData')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/az_SQLDB_FactOrders')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -685,6 +699,82 @@
 				"typeProperties": {
 					"schema": "dbo",
 					"table": "FactOrders"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/az_SQLDB_dbo_Products')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_SQLDB_ADF_sql_server_training",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "ProductID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "ProductName",
+						"type": "varchar"
+					},
+					{
+						"name": "Price",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "Stock",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "DimProduct"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/az_SQLDB_dbo_emp')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_SQLDB_ADF_sql_server_training",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "FirstName",
+						"type": "varchar"
+					},
+					{
+						"name": "LastName",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "emp"
 				}
 			},
 			"dependsOn": [
@@ -809,305 +899,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/az_SQLDB_dbo_emp')]",
 				"[concat(variables('factoryId'), '/datasets/az_ADLS_Employee')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Demo_GetMetadataActivity')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get Metadata Last Modified Date",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "az_ADLS_EmployeeCP",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"lastModified",
-								"size",
-								"itemName"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							},
-							"formatSettings": {
-								"type": "DelimitedTextReadSettings"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-06-18T11:20:43Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_EmployeeCP')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Demo_If Condition Activity')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get Metadata Last Modified Date",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "az_ADLS_EmployeeCP",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"lastModified",
-								"size",
-								"itemName"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							},
-							"formatSettings": {
-								"type": "DelimitedTextReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Lookup Last Execution Date",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Get Metadata Last Modified Date",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[usp_LastLoadDate]",
-								"storedProcedureParameters": {
-									"name": {
-										"type": "String",
-										"value": {
-											"value": "@activity('Get Metadata Last Modified Date').output.itemName",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "az_SQLDB_dbo_emp",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": true
-						}
-					},
-					{
-						"name": "If Condition Test Dates",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "Lookup Last Execution Date",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@greaterOrEquals(\naddhours(\nformatDateTime(\nactivity('Get Metadata Last Modified Date').output.lastModified,'o'),-4),\nactivity('Lookup Last Execution Date').output.firstRow.ExecutionDate)",
-								"type": "Expression"
-							},
-							"ifFalseActivities": [
-								{
-									"name": "False",
-									"type": "Wait",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"waitTimeInSeconds": 1
-									}
-								}
-							],
-							"ifTrueActivities": [
-								{
-									"name": "usp_UpdateExecutionData",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[usp_UpdateLastExecutionDate]",
-										"storedProcedureParameters": {
-											"ExecutionDate": {
-												"value": {
-													"value": "@convertFromUtc(pipeline().TriggerTime,'Eastern Standard Time')",
-													"type": "Expression"
-												},
-												"type": "DateTime"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "az_SQLDB_ADF_sql_server_training",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-06-19T08:54:18Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_EmployeeCP')]",
-				"[concat(variables('factoryId'), '/datasets/az_SQLDB_dbo_emp')]",
-				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Demo_Lookup Activity')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get Metadata Last Modified Date",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "az_ADLS_EmployeeCP",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"lastModified",
-								"size",
-								"itemName"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							},
-							"formatSettings": {
-								"type": "DelimitedTextReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Lookup Last Execution Date",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Get Metadata Last Modified Date",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[usp_LastLoadDate]",
-								"storedProcedureParameters": {
-									"name": {
-										"type": "String",
-										"value": {
-											"value": "@activity('Get Metadata Last Modified Date').output.itemName",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "az_SQLDB_dbo_emp",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-06-18T12:44:38Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_EmployeeCP')]",
-				"[concat(variables('factoryId'), '/datasets/az_SQLDB_dbo_emp')]"
 			]
 		}
 	]

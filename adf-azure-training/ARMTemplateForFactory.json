@@ -15,6 +15,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'az_SQLDB_ADF_sql_server_training'"
 		},
+		"GetWebData_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://api.frankfurter.dev/v1"
+		},
 		"az_ADLS_strialstorage001_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://strialstorage001.dfs.core.windows.net/"
@@ -609,6 +613,139 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/GetDataFromWeb')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetDataFromAPI",
+						"description": "Gets ExchangeRates data from RestAPI.",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": {},
+							"url": "https://api.frankfurter.dev/v1/latest"
+						}
+					},
+					{
+						"name": "ForEach_BaseCurrency",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetDataFromAPI",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@variables('BaseCurrencies')",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 4,
+							"activities": [
+								{
+									"name": "Copy_FxRates_To_Bronze",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 2,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:00.010",
+											"requestMethod": "GET",
+											"paginationRules": {
+												"supportRFC5988": "true"
+											}
+										},
+										"sink": {
+											"type": "JsonSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "JsonWriteSettings"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "az_RestSource_ExchangeRates",
+											"type": "DatasetReference",
+											"parameters": {
+												"RunDate": "2026-07-13",
+												"BaseCurrency": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_Bronze_FxRates_Json",
+											"type": "DatasetReference",
+											"parameters": {
+												"date": "2026-07-13",
+												"currency": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"BaseCurrencies": {
+						"type": "Array",
+						"defaultValue": [
+							"USD",
+							"EUR",
+							"GBP",
+							"JPY",
+							"TRY",
+							"AUD",
+							"CAD"
+						]
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/az_RestSource_ExchangeRates')]",
+				"[concat(variables('factoryId'), '/datasets/DS_Bronze_FxRates_Json')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_CleanOrders')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -717,6 +854,107 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/DF_ChangeRecordsIntegration')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_MoveDataFromADLSToAzureSQLDB')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 3
+						}
+					},
+					{
+						"name": "Execute DF_Transform_ordering_raw",
+						"description": "Transfer data from Azure Data Lake Storage to Azure SQL DB",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Wait1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_Transform_ordering_raw",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceData": {},
+									"TransferToAzureSQLDB": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_Transform_ordering_raw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_Bronze_FxRates_Json')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_ADLS_strialstorage001",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"date": {
+						"type": "String",
+						"defaultValue": "2026-07-13"
+					},
+					"currency": {
+						"type": "String",
+						"defaultValue": "USD"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "fx/ingest_date=dataset().date/base=dataset().currency/dataset().currency/dataset().date.json",
+							"type": "Expression"
+						},
+						"folderPath": "Source",
+						"fileSystem": "bronze"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_ADLS_strialstorage001')]"
 			]
 		},
 		{
@@ -1065,6 +1303,209 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/az_ADLS_ordering_raw')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_ADLS_strialstorage001",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "ordering_raw.csv",
+						"folderPath": "Source",
+						"fileSystem": "bronze"
+					},
+					"columnDelimiter": ",",
+					"rowDelimiter": "\n",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "OrderID",
+						"type": "String"
+					},
+					{
+						"name": "OrderDate",
+						"type": "String"
+					},
+					{
+						"name": "ShipDate",
+						"type": "String"
+					},
+					{
+						"name": "CustomerID",
+						"type": "String"
+					},
+					{
+						"name": "Product",
+						"type": "String"
+					},
+					{
+						"name": "Category",
+						"type": "String"
+					},
+					{
+						"name": "Quantity",
+						"type": "String"
+					},
+					{
+						"name": "UnitPrice",
+						"type": "String"
+					},
+					{
+						"name": "DiscountPercent",
+						"type": "String"
+					},
+					{
+						"name": "TotalAmount",
+						"type": "String"
+					},
+					{
+						"name": "PaymentMethod",
+						"type": "String"
+					},
+					{
+						"name": "Country",
+						"type": "String"
+					},
+					{
+						"name": "OrderStatus",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_ADLS_strialstorage001')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/az_RestSource_ExchangeRates')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "GetWebData",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"RunDate": {
+						"type": "string",
+						"defaultValue": "2026-07-13"
+					},
+					"BaseCurrency": {
+						"type": "string",
+						"defaultValue": "USD"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@concat(dataset().RunDate, '?from=', dataset().BaseCurrency)",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/GetWebData')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/az_SQLDB_FactOrders')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "az_SQLDB_ADF_sql_server_training",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "OrderID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "OrderDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "ShipDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "CustomerID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Product",
+						"type": "varchar"
+					},
+					{
+						"name": "Category",
+						"type": "varchar"
+					},
+					{
+						"name": "Quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "UnitPrice",
+						"type": "decimal",
+						"precision": 5,
+						"scale": 2
+					},
+					{
+						"name": "DiscountPercent",
+						"type": "decimal",
+						"precision": 3,
+						"scale": 2
+					},
+					{
+						"name": "TotalAmount",
+						"type": "decimal",
+						"precision": 8,
+						"scale": 2
+					},
+					{
+						"name": "PaymentMethod",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					},
+					{
+						"name": "OrderStatus",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "FactOrders"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/az_SQLDB_dbo_Products')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -1139,6 +1580,21 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/GetWebData')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('GetWebData_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/az_ADLS_strialstorage001')]",
@@ -1508,331 +1964,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DataFlowDemo')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductAll",
-								"type": "DatasetReference"
-							},
-							"name": "ProductsAll"
-						},
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductModels",
-								"type": "DatasetReference"
-							},
-							"name": "ProductModels"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductFinalData",
-								"type": "DatasetReference"
-							},
-							"name": "ProductFinalData"
-						}
-					],
-					"transformations": [
-						{
-							"name": "CombineDatasets"
-						},
-						{
-							"name": "RemoveDuplicateColumns"
-						},
-						{
-							"name": "RemovePriceBelow130"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          product_id as integer,",
-						"          product_name as string,",
-						"          model_id as integer,",
-						"          price as float",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> ProductsAll",
-						"source(output(",
-						"          model_id as integer,",
-						"          model_name as string,",
-						"          category as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> ProductModels",
-						"ProductsAll, ProductModels lookup(ProductsAll@model_id == ProductModels@model_id,",
-						"     multiple: false,",
-						"     pickup: 'any',",
-						"     broadcast: 'auto')~> CombineDatasets",
-						"CombineDatasets select(mapColumn(",
-						"          product_id,",
-						"          product_name,",
-						"          model_id = ProductsAll@model_id,",
-						"          price,",
-						"          model_name,",
-						"          category",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> RemoveDuplicateColumns",
-						"RemoveDuplicateColumns filter(lesserOrEqual(price, 130)) ~> RemovePriceBelow130",
-						"RemovePriceBelow130 sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductAll')]",
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductModels')]",
-				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductFinalData')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/az_ADLS_ordering_raw')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "az_ADLS_strialstorage001",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": "ordering_raw.csv",
-						"folderPath": "Source",
-						"fileSystem": "bronze"
-					},
-					"columnDelimiter": ",",
-					"rowDelimiter": "\n",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": [
-					{
-						"name": "OrderID",
-						"type": "String"
-					},
-					{
-						"name": "OrderDate",
-						"type": "String"
-					},
-					{
-						"name": "ShipDate",
-						"type": "String"
-					},
-					{
-						"name": "CustomerID",
-						"type": "String"
-					},
-					{
-						"name": "Product",
-						"type": "String"
-					},
-					{
-						"name": "Category",
-						"type": "String"
-					},
-					{
-						"name": "Quantity",
-						"type": "String"
-					},
-					{
-						"name": "UnitPrice",
-						"type": "String"
-					},
-					{
-						"name": "DiscountPercent",
-						"type": "String"
-					},
-					{
-						"name": "TotalAmount",
-						"type": "String"
-					},
-					{
-						"name": "PaymentMethod",
-						"type": "String"
-					},
-					{
-						"name": "Country",
-						"type": "String"
-					},
-					{
-						"name": "OrderStatus",
-						"type": "String"
-					}
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/az_ADLS_strialstorage001')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PL_MoveDataFromADLSToAzureSQLDB')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Wait1",
-						"type": "Wait",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 3
-						}
-					},
-					{
-						"name": "Execute DF_Transform_ordering_raw",
-						"description": "Transfer data from Azure Data Lake Storage to Azure SQL DB",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [
-							{
-								"activity": "Wait1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "DF_Transform_ordering_raw",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"SourceData": {},
-									"TransferToAzureSQLDB": {}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/DF_Transform_ordering_raw')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/az_SQLDB_FactOrders')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "az_SQLDB_ADF_sql_server_training",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "OrderID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "OrderDate",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					},
-					{
-						"name": "ShipDate",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					},
-					{
-						"name": "CustomerID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "Product",
-						"type": "varchar"
-					},
-					{
-						"name": "Category",
-						"type": "varchar"
-					},
-					{
-						"name": "Quantity",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "UnitPrice",
-						"type": "decimal",
-						"precision": 5,
-						"scale": 2
-					},
-					{
-						"name": "DiscountPercent",
-						"type": "decimal",
-						"precision": 3,
-						"scale": 2
-					},
-					{
-						"name": "TotalAmount",
-						"type": "decimal",
-						"precision": 8,
-						"scale": 2
-					},
-					{
-						"name": "PaymentMethod",
-						"type": "varchar"
-					},
-					{
-						"name": "Country",
-						"type": "varchar"
-					},
-					{
-						"name": "OrderStatus",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "FactOrders"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/az_SQLDB_ADF_sql_server_training')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/DF_Transform_ordering_raw')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -1928,6 +2059,98 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/az_ADLS_ordering_raw')]",
 				"[concat(variables('factoryId'), '/datasets/az_SQLDB_FactOrders')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataFlowDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductAll",
+								"type": "DatasetReference"
+							},
+							"name": "ProductsAll"
+						},
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductModels",
+								"type": "DatasetReference"
+							},
+							"name": "ProductModels"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductFinalData",
+								"type": "DatasetReference"
+							},
+							"name": "ProductFinalData"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CombineDatasets"
+						},
+						{
+							"name": "RemoveDuplicateColumns"
+						},
+						{
+							"name": "RemovePriceBelow130"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          product_id as integer,",
+						"          product_name as string,",
+						"          model_id as integer,",
+						"          price as float",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> ProductsAll",
+						"source(output(",
+						"          model_id as integer,",
+						"          model_name as string,",
+						"          category as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> ProductModels",
+						"ProductsAll, ProductModels lookup(ProductsAll@model_id == ProductModels@model_id,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> CombineDatasets",
+						"CombineDatasets select(mapColumn(",
+						"          product_id,",
+						"          product_name,",
+						"          model_id = ProductsAll@model_id,",
+						"          price,",
+						"          model_name,",
+						"          category",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> RemoveDuplicateColumns",
+						"RemoveDuplicateColumns filter(lesserOrEqual(price, 130)) ~> RemovePriceBelow130",
+						"RemovePriceBelow130 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductAll')]",
+				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductModels')]",
+				"[concat(variables('factoryId'), '/datasets/az_ADLS_ProductFinalData')]"
 			]
 		}
 	]

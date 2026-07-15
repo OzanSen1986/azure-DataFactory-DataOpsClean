@@ -13,6 +13,296 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/Demo_GetMetadataActivity')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata Last Modified Date",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "az_ADLS_EmployeeCP",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"lastModified",
+								"size",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-06-18T11:20:43Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Demo_If Condition Activity')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata Last Modified Date",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "az_ADLS_EmployeeCP",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"lastModified",
+								"size",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Lookup Last Execution Date",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata Last Modified Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[usp_LastLoadDate]",
+								"storedProcedureParameters": {
+									"name": {
+										"type": "String",
+										"value": {
+											"value": "@activity('Get Metadata Last Modified Date').output.itemName",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "az_SQLDB_dbo_emp",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": true
+						}
+					},
+					{
+						"name": "If Condition Test Dates",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Lookup Last Execution Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greaterOrEquals(\naddhours(\nformatDateTime(\nactivity('Get Metadata Last Modified Date').output.lastModified,'o'),-4),\nactivity('Lookup Last Execution Date').output.firstRow.ExecutionDate)",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "False",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 1
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "usp_UpdateExecutionData",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[usp_UpdateLastExecutionDate]",
+										"storedProcedureParameters": {
+											"ExecutionDate": {
+												"value": {
+													"value": "@convertFromUtc(pipeline().TriggerTime,'Eastern Standard Time')",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "az_SQLDB_ADF_sql_server_training",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-06-19T08:54:18Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Demo_Lookup Activity')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata Last Modified Date",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "az_ADLS_EmployeeCP",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"lastModified",
+								"size",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Lookup Last Execution Date",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata Last Modified Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[usp_LastLoadDate]",
+								"storedProcedureParameters": {
+									"name": {
+										"type": "String",
+										"value": {
+											"value": "@activity('Get Metadata Last Modified Date').output.itemName",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "az_SQLDB_dbo_emp",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-06-18T12:44:38Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Demo_StoredProcedure')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -107,6 +397,136 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2026-06-18T12:06:19Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/GetDataFromWeb')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetDataFromAPI",
+						"description": "Gets ExchangeRates data from RestAPI.",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 2,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": {},
+							"url": "https://api.frankfurter.dev/v1/latest"
+						}
+					},
+					{
+						"name": "ForEach_BaseCurrency",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetDataFromAPI",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@variables('BaseCurrencies')",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 4,
+							"activities": [
+								{
+									"name": "Copy_FxRates_To_Bronze",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 2,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:00.010",
+											"requestMethod": "GET",
+											"paginationRules": {
+												"supportRFC5988": "true"
+											}
+										},
+										"sink": {
+											"type": "JsonSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "JsonWriteSettings"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "az_RestSource_ExchangeRates",
+											"type": "DatasetReference",
+											"parameters": {
+												"RunDate": "2026-07-13",
+												"BaseCurrency": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_Bronze_FxRates_Json",
+											"type": "DatasetReference",
+											"parameters": {
+												"date": "2026-07-13",
+												"currency": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"BaseCurrencies": {
+						"type": "Array",
+						"defaultValue": [
+							"USD",
+							"EUR",
+							"GBP",
+							"JPY",
+							"TRY",
+							"AUD",
+							"CAD"
+						]
+					}
+				},
+				"annotations": []
 			},
 			"dependsOn": []
 		},
@@ -369,94 +789,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DataFlowDemo')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductAll",
-								"type": "DatasetReference"
-							},
-							"name": "ProductsAll"
-						},
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductModels",
-								"type": "DatasetReference"
-							},
-							"name": "ProductModels"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "az_ADLS_ProductFinalData",
-								"type": "DatasetReference"
-							},
-							"name": "ProductFinalData"
-						}
-					],
-					"transformations": [
-						{
-							"name": "CombineDatasets"
-						},
-						{
-							"name": "RemoveDuplicateColumns"
-						},
-						{
-							"name": "RemovePriceBelow130"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          product_id as integer,",
-						"          product_name as string,",
-						"          model_id as integer,",
-						"          price as float",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> ProductsAll",
-						"source(output(",
-						"          model_id as integer,",
-						"          model_name as string,",
-						"          category as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> ProductModels",
-						"ProductsAll, ProductModels lookup(ProductsAll@model_id == ProductModels@model_id,",
-						"     multiple: false,",
-						"     pickup: 'any',",
-						"     broadcast: 'auto')~> CombineDatasets",
-						"CombineDatasets select(mapColumn(",
-						"          product_id,",
-						"          product_name,",
-						"          model_id = ProductsAll@model_id,",
-						"          price,",
-						"          model_name,",
-						"          category",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> RemoveDuplicateColumns",
-						"RemoveDuplicateColumns filter(lesserOrEqual(price, 130)) ~> RemovePriceBelow130",
-						"RemovePriceBelow130 sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
-					]
-				}
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/DF_Transform_ordering_raw')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -546,6 +878,94 @@
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
 						"     errorHandlingOption: 'stopOnFirstError') ~> TransferToAzureSQLDB"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataFlowDemo')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductAll",
+								"type": "DatasetReference"
+							},
+							"name": "ProductsAll"
+						},
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductModels",
+								"type": "DatasetReference"
+							},
+							"name": "ProductModels"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "az_ADLS_ProductFinalData",
+								"type": "DatasetReference"
+							},
+							"name": "ProductFinalData"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CombineDatasets"
+						},
+						{
+							"name": "RemoveDuplicateColumns"
+						},
+						{
+							"name": "RemovePriceBelow130"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          product_id as integer,",
+						"          product_name as string,",
+						"          model_id as integer,",
+						"          price as float",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> ProductsAll",
+						"source(output(",
+						"          model_id as integer,",
+						"          model_name as string,",
+						"          category as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> ProductModels",
+						"ProductsAll, ProductModels lookup(ProductsAll@model_id == ProductModels@model_id,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> CombineDatasets",
+						"CombineDatasets select(mapColumn(",
+						"          product_id,",
+						"          product_name,",
+						"          model_id = ProductsAll@model_id,",
+						"          price,",
+						"          model_name,",
+						"          category",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> RemoveDuplicateColumns",
+						"RemoveDuplicateColumns filter(lesserOrEqual(price, 130)) ~> RemovePriceBelow130",
+						"RemovePriceBelow130 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> ProductFinalData"
 					]
 				}
 			},

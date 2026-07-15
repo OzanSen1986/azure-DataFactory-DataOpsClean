@@ -11,6 +11,9 @@
 		"az_SQLDB_ADF_sql_server_training_password": {
 			"value": ""
 		},
+		"GetWebData_properties_typeProperties_url": {
+			"value": "https://api.frankfurter.dev/v1"
+		},
 		"az_ADLS_strialstorage001_properties_typeProperties_url": {
 			"value": "https://strialstorage001.dfs.core.windows.net/"
 		},

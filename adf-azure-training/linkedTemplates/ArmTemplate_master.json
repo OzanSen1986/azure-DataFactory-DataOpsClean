@@ -15,6 +15,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'az_SQLDB_ADF_sql_server_training'"
 		},
+		"GetWebData_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://api.frankfurter.dev/v1"
+		},
 		"az_ADLS_strialstorage001_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://strialstorage001.dfs.core.windows.net/"
@@ -67,6 +71,9 @@
 					},
 					"az_SQLDB_ADF_sql_server_training_password": {
 						"value": "[parameters('az_SQLDB_ADF_sql_server_training_password')]"
+					},
+					"GetWebData_properties_typeProperties_url": {
+						"value": "[parameters('GetWebData_properties_typeProperties_url')]"
 					},
 					"az_ADLS_strialstorage001_properties_typeProperties_url": {
 						"value": "[parameters('az_ADLS_strialstorage001_properties_typeProperties_url')]"
