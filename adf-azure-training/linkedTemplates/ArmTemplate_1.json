@@ -407,7 +407,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "GetDataFromAPI",
+						"name": "GetExchangeRateFromRestAPI",
 						"description": "Gets ExchangeRates data from RestAPI.",
 						"type": "WebActivity",
 						"dependsOn": [],
@@ -430,7 +430,7 @@
 						"type": "ForEach",
 						"dependsOn": [
 							{
-								"activity": "GetDataFromAPI",
+								"activity": "GetExchangeRateFromRestAPI",
 								"dependencyConditions": [
 									"Succeeded"
 								]
